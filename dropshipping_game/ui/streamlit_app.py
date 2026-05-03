@@ -57,16 +57,165 @@ if 'advisor' not in st.session_state:
 if 'day_summary' not in st.session_state:
     st.session_state.day_summary = ""
 
+if 'tutorial_step' not in st.session_state:
+    st.session_state.tutorial_step = 1  # Start tutorial on first load
+
 game: DropshippingGame = st.session_state.game
 advisor: GeminiAdvisor = st.session_state.advisor
 
 
 def main() -> None:
+    # Tutorial dialogs
+    if st.session_state.tutorial_step == 1:
+        @st.dialog("Welcome to Dropshipping Empire! 🎉")
+        def tutorial_step_1():
+            st.write("Welcome to your dropshipping business simulation!")
+            st.write("This tutorial will guide you through the game features.")
+            st.write("Click 'Next' to continue.")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Next", key="tut_next_1"):
+                    st.session_state.tutorial_step = 2
+                    st.rerun()
+            with col2:
+                if st.button("Skip Tutorial", key="tut_skip"):
+                    st.session_state.tutorial_step = 0
+                    st.rerun()
+        tutorial_step_1()
+
+    elif st.session_state.tutorial_step == 2:
+        @st.dialog("Business Overview 📊")
+        def tutorial_step_2():
+            st.write("This section shows your current business status:")
+            st.write("- **Day**: How many days you've been running the business")
+            st.write("- **Money**: Your current cash balance")
+            st.write("- **Total Sales**: Units sold so far")
+            st.write("- **Total Profit**: Overall profit made")
+            if st.button("Next", key="tut_next_2"):
+                st.session_state.tutorial_step = 3
+                st.rerun()
+        tutorial_step_2()
+
+    elif st.session_state.tutorial_step == 3:
+        @st.dialog("Game Actions 🎮")
+        def tutorial_step_3():
+            st.write("The sidebar contains your main game actions:")
+            st.write("- **Advance Day**: Simulate a day passing with automatic sales and events")
+            st.write("- **Buy Inventory**: Purchase products from manufacturers")
+            st.write("- **Manual Sale**: Sell products directly at custom prices")
+            if st.button("Next", key="tut_next_3"):
+                st.session_state.tutorial_step = 4
+                st.rerun()
+        tutorial_step_3()
+
+    elif st.session_state.tutorial_step == 4:
+        @st.dialog("Buying Inventory 🛒")
+        def tutorial_step_4():
+            st.write("To buy inventory:")
+            st.write("1. Select a manufacturer from the dropdown")
+            st.write("2. Choose the quantity you want to buy")
+            st.write("3. Check the total cost")
+            st.write("4. Click 'Purchase' if you have enough money")
+            st.write("Products will be added to your stock for selling.")
+            if st.button("Next", key="tut_next_4"):
+                st.session_state.tutorial_step = 5
+                st.rerun()
+        tutorial_step_4()
+
+    elif st.session_state.tutorial_step == 5:
+        @st.dialog("Manual Sales 💸")
+        def tutorial_step_5():
+            st.write("To make a manual sale:")
+            st.write("1. Select the product (manufacturer)")
+            st.write("2. Choose quantity to sell (can't exceed stock)")
+            st.write("3. Set your selling price per unit")
+            st.write("4. Pick the country (affects shipping/tax)")
+            st.write("5. Choose the sales platform (affects fees)")
+            st.write("6. Click 'Sell' to complete the transaction")
+            if st.button("Next", key="tut_next_5"):
+                st.session_state.tutorial_step = 6
+                st.rerun()
+        tutorial_step_5()
+
+    elif st.session_state.tutorial_step == 6:
+        @st.dialog("Markets 🌍")
+        def tutorial_step_6():
+            st.write("Markets (Countries) have different characteristics:")
+            st.write("- **Demand Level**: How much people want to buy (higher = more sales)")
+            st.write("- **Shipping Cost**: Cost to ship per unit")
+            st.write("- **Tax Rate**: Percentage tax on sales")
+            st.write("Choose countries that match your strategy!")
+            if st.button("Next", key="tut_next_6"):
+                st.session_state.tutorial_step = 7
+                st.rerun()
+        tutorial_step_6()
+
+    elif st.session_state.tutorial_step == 7:
+        @st.dialog("Suppliers 🏭")
+        def tutorial_step_7():
+            st.write("Manufacturers supply your products:")
+            st.write("- **Unit Cost**: Price to buy each item")
+            st.write("- **Stock**: How many you currently have")
+            st.write("- **Quality**: Affects automatic sales (higher = better)")
+            st.write("Buy from suppliers with good quality-to-cost ratios!")
+            if st.button("Next", key="tut_next_7"):
+                st.session_state.tutorial_step = 8
+                st.rerun()
+        tutorial_step_7()
+
+    elif st.session_state.tutorial_step == 8:
+        @st.dialog("Sales Platforms 🛒")
+        def tutorial_step_8():
+            st.write("Platforms where you sell products:")
+            st.write("- **Fee Rate**: Commission they take per sale")
+            st.write("- **Traffic**: How many potential customers (higher = more sales)")
+            st.write("- **Trust**: Customer confidence (affects conversions)")
+            st.write("Balance fees vs. traffic when choosing platforms!")
+            if st.button("Next", key="tut_next_8"):
+                st.session_state.tutorial_step = 9
+                st.rerun()
+        tutorial_step_8()
+
+    elif st.session_state.tutorial_step == 9:
+        @st.dialog("AI Business Advisor 🤖")
+        def tutorial_step_9():
+            st.write("The AI advisor can help you:")
+            st.write("- Get business advice based on your current state")
+            st.write("- Analyze market conditions")
+            st.write("- Answer specific strategy questions")
+            st.write("Set GEMINI_API_KEY for real AI, otherwise uses sample advice.")
+            if st.button("Next", key="tut_next_9"):
+                st.session_state.tutorial_step = 10
+                st.rerun()
+        tutorial_step_9()
+
+    elif st.session_state.tutorial_step == 10:
+        @st.dialog("Gameplay Loop 🔄")
+        def tutorial_step_10():
+            st.write("The main gameplay loop:")
+            st.write("1. **Buy inventory** from manufacturers")
+            st.write("2. **Advance day** to simulate sales and events")
+            st.write("3. **Check results** in Business Overview")
+            st.write("4. **Make manual sales** for extra profit")
+            st.write("5. **Use AI advisor** for strategy tips")
+            st.write("6. Repeat and grow your business!")
+            st.write("Events happen randomly each day - adapt your strategy!")
+            if st.button("Start Playing!", key="tut_finish"):
+                st.session_state.tutorial_step = 0  # End tutorial
+                st.rerun()
+        tutorial_step_10()
+
     st.title("🚀 Dropshipping Empire")
 
     # Sidebar for actions
     with st.sidebar:
         st.header("🎮 Game Actions")
+
+        if st.button("📚 Tutorial", key="restart_tutorial"):
+            st.session_state.tutorial_step = 1
+            st.rerun()
+
+        st.divider()
 
         if st.button("⏭️ Advance Day", type="primary"):
             with st.spinner("Processing day..."):
