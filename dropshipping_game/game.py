@@ -16,6 +16,8 @@ class DropshippingGame:
     selling_sites: list[SellingSite] = field(default_factory=list)
     current_day: int = 0
     notes: str = ""
+    rent_amount: float = 500.0
+    days_until_rent: int = 7
 
     def advance_day(self) -> str:
         """Advance to the next day and simulate sales. Returns a summary of what happened."""
@@ -33,6 +35,17 @@ class DropshippingGame:
         if random.random() < 0.3:  # 30% chance of random event
             event = self._generate_random_event()
             events.append(event)
+
+        # Handle rent
+        self.days_until_rent -= 1
+        if self.days_until_rent <= 0:
+            if self.tracker.money >= self.rent_amount:
+                self.tracker.money -= self.rent_amount
+                events.append(f"Rent paid: ${self.rent_amount:.2f}")
+                self.days_until_rent = 7  # Reset countdown
+            else:
+                events.append(f"Rent due but insufficient funds! Owed ${self.rent_amount:.2f}, have ${self.tracker.money:.2f}. Game over!")
+                # Could add game over logic here
 
         summary = f"Day {self.current_day} complete. " + " | ".join(events) if events else f"Day {self.current_day} complete. No sales today."
         return summary
@@ -194,6 +207,7 @@ Money: ${self.tracker.money:.2f}
 Total Sales: {self.tracker.total_sales}
 Total Revenue: ${self.tracker.total_revenue:.2f}
 Total Profit: ${self.tracker.total_profit:.2f}
+Days until rent: {self.days_until_rent}
 Manufacturers: {len(self.manufacturers)}
 Countries: {len(self.countries)}
 Selling Sites: {len(self.selling_sites)}"""

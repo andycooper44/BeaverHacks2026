@@ -288,7 +288,7 @@ def main() -> None:
     st.header("📊 Business Overview")
     if st.session_state.day_summary:
         st.info(st.session_state.day_summary)
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Day", game.current_day)
     with col2:
@@ -297,6 +297,8 @@ def main() -> None:
         st.metric("Total Sales", game.tracker.total_sales)
     with col4:
         st.metric("Total Profit", f"${game.tracker.total_profit:.2f}")
+    with col5:
+        st.metric("Days Until Rent", game.days_until_rent)
 
     # Sales Tracker
     if game.tracker.sales:
