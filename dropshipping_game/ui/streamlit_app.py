@@ -1,14 +1,21 @@
+import sys
+from pathlib import Path
+
 import streamlit as st
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from dropshipping_game.game import DropshippingGame
 from dropshipping_game.gemini_client import GENAI_AVAILABLE
 
 
 def main() -> None:
-    st.title("🚚 Dropshipping Empire Game")
+    st.title("🚚 Dropshipping Empire")
 
     # Initialize game in session state
-    if 'game' not in st.session_state:
+    if "game" not in st.session_state:
         st.session_state.game = DropshippingGame()
 
     game = st.session_state.game
@@ -17,7 +24,9 @@ def main() -> None:
         if GENAI_AVAILABLE:
             st.success("🤖 Gemini AI advisor enabled")
         else:
-            st.warning("Gemini API key set, but the required library is missing. Install google-genai.")
+            st.warning(
+                "Gemini API key set, but the required library is missing. Install google-genai."
+            )
     else:
         st.info("Gemini AI advisor disabled. Set GEMINI_API_KEY to enable AI advice.")
 
@@ -49,8 +58,13 @@ def main() -> None:
         col1, col2 = st.columns(2)
 
         with col1:
-            manufacturer_options = [f"{m.name} - {m.product} (${m.unit_cost:.2f}, stock: {m.stock})" for m in game.manufacturers]
-            selected_manufacturer = st.selectbox("Choose manufacturer:", manufacturer_options)
+            manufacturer_options = [
+                f"{m.name} - {m.product} (${m.unit_cost:.2f}, stock: {m.stock})"
+                for m in game.manufacturers
+            ]
+            selected_manufacturer = st.selectbox(
+                "Choose manufacturer:", manufacturer_options
+            )
 
         with col2:
             quantity = st.number_input("Quantity:", min_value=1, value=10)
@@ -78,13 +92,19 @@ def main() -> None:
 
             with col3:
                 country_options = [c.name for c in game.countries]
-                selected_country = st.selectbox("Choose target country:", country_options)
+                selected_country = st.selectbox(
+                    "Choose target country:", country_options
+                )
 
             max_qty = game.inventory.get(selected_product, 0)
-            quantity = st.number_input("Quantity:", min_value=1, max_value=max_qty, value=min(10, max_qty))
+            quantity = st.number_input(
+                "Quantity:", min_value=1, max_value=max_qty, value=min(10, max_qty)
+            )
 
             if st.button("Sell"):
-                result = game.sell_products(selected_product, selected_site, selected_country, quantity)
+                result = game.sell_products(
+                    selected_product, selected_site, selected_country, quantity
+                )
                 st.success(result)
                 st.rerun()
 
@@ -105,7 +125,9 @@ def main() -> None:
         if game.tracker.sales:
             st.subheader("Recent Sales")
             for sale in game.tracker.sales[-5:]:  # Show last 5 sales
-                st.write(f"- {sale.product}: {sale.quantity} units, Profit: ${sale.profit:.2f}")
+                st.write(
+                    f"- {sale.product}: {sale.quantity} units, Profit: ${sale.profit:.2f}"
+                )
 
     elif action == "Advance Day":
         st.subheader("⏭️ Advance to Next Day")
@@ -125,15 +147,21 @@ def main() -> None:
     with st.expander("🌍 Market Information"):
         st.subheader("Countries")
         for country in game.countries:
-            st.write(f"- **{country.name}**: Demand {country.demand_level:.1f}, Shipping ${country.shipping_cost:.2f}, Tax {country.tax_rate:.1%}")
+            st.write(
+                f"- **{country.name}**: Demand {country.demand_level:.1f}, Shipping ${country.shipping_cost:.2f}, Tax {country.tax_rate:.1%}"
+            )
 
         st.subheader("Manufacturers")
         for manufacturer in game.manufacturers:
-            st.write(f"- **{manufacturer.name}**: {manufacturer.product} (${manufacturer.unit_cost:.2f}), Stock: {manufacturer.stock}")
+            st.write(
+                f"- **{manufacturer.name}**: {manufacturer.product} (${manufacturer.unit_cost:.2f}), Stock: {manufacturer.stock}"
+            )
 
         st.subheader("Selling Sites")
         for site in game.selling_sites:
-            st.write(f"- **{site.name}**: Fee {site.fee_rate:.1%}, Traffic {site.traffic:.1f}, Trust {site.trust:.1f}")
+            st.write(
+                f"- **{site.name}**: Fee {site.fee_rate:.1%}, Traffic {site.traffic:.1f}, Trust {site.trust:.1f}"
+            )
 
     # Game Tips
     with st.expander("💡 Game Tips"):

@@ -27,14 +27,27 @@ py -m streamlit run dropshipping_game/ui/streamlit_app.py
 
 ## Gemini Setup
 
-1. Set your Gemini API key:
+Option 1: create a local `.env` file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Then replace `your_api_key_here` inside `.env`.
+
+The default model is:
+
+```env
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Option 2: set your Gemini API key in PowerShell:
 
 ```powershell
 setx GEMINI_API_KEY "your_api_key_here"
 ```
 
-2. Restart your terminal so the environment variable is available.
-3. Run the game again with Streamlit.
+Restart your terminal if you use `setx`.
 
 ## Files
 
