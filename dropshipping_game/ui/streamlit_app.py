@@ -1,49 +1,4 @@
-import os
-import sys
-
-# Ensure the project root is on sys.path when Streamlit runs this module.
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if ROOT_DIR not in sys.path:
-    sys.path.insert(0, ROOT_DIR)
-
 import streamlit as st
-from dropshipping_game.game import DropshippingGame
-from dropshipping_game.countries import Country
-from dropshipping_game.manufacturers import Manufacturer
-from dropshipping_game.selling_sites import SellingSite
-from dropshipping_game.gemini_client import GeminiAdvisor
-
-
-# Create sample game data
-def create_sample_game() -> DropshippingGame:
-    """Create a game with sample data for testing."""
-    game = DropshippingGame()
-
-    # Sample countries
-    game.countries = [
-        Country(name="USA", shipping_cost=5.99, tax_rate=0.08, demand_level=8.5, notes="High demand, fast shipping"),
-        Country(name="Canada", shipping_cost=8.50, tax_rate=0.12, demand_level=7.2, notes="Good market, higher taxes"),
-        Country(name="UK", shipping_cost=12.00, tax_rate=0.20, demand_level=6.8, notes="Premium market"),
-    ]
-
-    # Sample manufacturers
-    game.manufacturers = [
-        Manufacturer(name="TechCorp", product="Wireless Earbuds", unit_cost=25.00, stock=50, quality=9.2, notes="Premium audio"),
-        Manufacturer(name="GadgetPro", product="Smart Watch", unit_cost=90.00, stock=25, quality=8.8, notes="Fitness tracking"),
-        Manufacturer(name="CaseMaker", product="Phone Case", unit_cost=5.00, stock=200, quality=7.5, notes="Bulk supplier"),
-    ]
-
-    # Sample selling sites
-    game.selling_sites = [
-        SellingSite(name="Amazon", fee_rate=0.15, traffic=10.0, trust=9.5, notes="High traffic"),
-        SellingSite(name="eBay", fee_rate=0.10, traffic=7.5, trust=8.2, notes="Auction style"),
-        SellingSite(name="Shopify Store", fee_rate=0.02, traffic=3.2, trust=9.8, notes="Your own store"),
-    ]
-
-    game.tracker.money = 1000.00  # Starting money
-    game.notes = "Welcome to your dropshipping business!"
-
-    return game
 
 
 # Initialize game state in session
@@ -207,9 +162,9 @@ def main() -> None:
 
     st.title("🚀 Dropshipping Empire")
 
-    # Sidebar for actions
-    with st.sidebar:
-        st.header("🎮 Game Actions")
+    # Initialize game in session state
+    if 'game' not in st.session_state:
+        st.session_state.game = DropshippingGame()
 
         if st.button("📚 Tutorial", key="restart_tutorial"):
             st.session_state.tutorial_step = 1
@@ -222,35 +177,72 @@ def main() -> None:
                 st.session_state.day_summary = game.advance_day()
                 st.rerun()
 
-        st.divider()
+    if game.advisor.api_key:
+        if GENAI_AVAILABLE:
+            st.success("🤖 Gemini AI advisor enabled")
+        else:
+            st.warning("Gemini API key set, but the required library is missing. Install google-genai.")
+    else:
+        st.info("Gemini AI advisor disabled. Set GEMINI_API_KEY to enable AI advice.")
 
-        # Buy inventory section
-        st.subheader("🛒 Buy Inventory")
-        manufacturer_names = [m.name for m in game.manufacturers]
-        if manufacturer_names:
-            selected_manufacturer = st.selectbox(
-                "Select Manufacturer",
-                manufacturer_names,
-                key="buy_manufacturer"
-            )
-            manufacturer = next(m for m in game.manufacturers if m.name == selected_manufacturer)
+    # Game status
+    st.header("📊 Game Status")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Day", game.current_day)
+        st.metric("Money", f"${game.tracker.money:.2f}")
+    with col2:
+        st.metric("Total Sales", game.tracker.total_sales)
+        st.metric("Total Profit", f"${game.tracker.total_profit:.2f}")
+    with col3:
+        st.metric("Inventory Items", sum(game.inventory.values()))
 
-            col1, col2 = st.columns(2)
+    # Inventory
+    if game.inventory:
+        st.subheader("📦 Inventory")
+        for product, qty in game.inventory.items():
+            st.write(f"- {product}: {qty}")
+
+    # Action selection
+    st.header("🎯 Choose Action")
+    actions = game.get_available_actions()
+    action = st.selectbox("What would you like to do?", actions)
+
+    if action == "Buy Products":
+        st.subheader("🛒 Buy Products")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            manufacturer_options = [f"{m.name} - {m.product} (${m.unit_cost:.2f}, stock: {m.stock})" for m in game.manufacturers]
+            selected_manufacturer = st.selectbox("Choose manufacturer:", manufacturer_options)
+
+        with col2:
+            quantity = st.number_input("Quantity:", min_value=1, value=10)
+
+        if st.button("Buy"):
+            manufacturer_name = selected_manufacturer.split(" - ")[0]
+            result = game.buy_products(manufacturer_name, quantity)
+            st.success(result)
+            st.rerun()
+
+    elif action == "Sell Products":
+        st.subheader("💰 Sell Products")
+        if not game.inventory:
+            st.warning("No products in inventory to sell!")
+        else:
+            col1, col2, col3 = st.columns(3)
+
             with col1:
-                quantity = st.number_input("Quantity", min_value=1, value=10, key="buy_quantity")
+                product_options = list(game.inventory.keys())
+                selected_product = st.selectbox("Choose product:", product_options)
+
             with col2:
-                total_cost = manufacturer.unit_cost * quantity
-                st.metric("Total Cost", f"${total_cost:.2f}")
+                site_options = [s.name for s in game.selling_sites]
+                selected_site = st.selectbox("Choose selling site:", site_options)
 
-            if st.button("💰 Purchase", key="buy_button"):
-                success, message = game.buy_inventory(manufacturer, quantity)
-                if success:
-                    st.success(message)
-                else:
-                    st.error(message)
-                st.rerun()
-
-        st.divider()
+            with col3:
+                country_options = [c.name for c in game.countries]
+                selected_country = st.selectbox("Choose target country:", country_options)
 
         # Manual sale section
         st.subheader("💸 Manual Sale")
@@ -263,25 +255,9 @@ def main() -> None:
             )
             manufacturer = next(m for m in game.manufacturers if m.name == sale_manufacturer)
 
-            col1, col2 = st.columns(2)
-            with col1:
-                sale_quantity = st.number_input("Quantity", min_value=1, max_value=manufacturer.stock, value=min(5, manufacturer.stock), key="sale_quantity")
-                sale_price = st.number_input("Price per unit", min_value=0.01, value=float(manufacturer.unit_cost * 3), key="sale_price")
-            with col2:
-                country_names = [c.name for c in game.countries]
-                selected_country = st.selectbox("Country", country_names, key="sale_country")
-                site_names = [s.name for s in game.selling_sites]
-                selected_site = st.selectbox("Platform", site_names, key="sale_site")
-
-            if st.button("🛍️ Sell", key="sell_button"):
-                country = next(c for c in game.countries if c.name == selected_country)
-                site = next(s for s in game.selling_sites if s.name == selected_site)
-
-                success, message = game.sell_product(manufacturer, sale_quantity, sale_price, country, site)
-                if success:
-                    st.success(message)
-                else:
-                    st.error(message)
+            if st.button("Sell"):
+                result = game.sell_products(selected_product, selected_site, selected_country, quantity)
+                st.success(result)
                 st.rerun()
 
     # Main content
