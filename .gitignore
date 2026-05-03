@@ -1,6 +1,9 @@
+#Cache files
 __pycache__/
-*.py[cod]
-.mypy_cache/
-.pytest_cache/
-.venv/
-.env
+*.pyc 
+
+# Virtual Enviroment
+ .venv/
+
+# Enviroment variables 
+.env 
