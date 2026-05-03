@@ -201,43 +201,41 @@ def main() -> None:
                         st.caption(site.notes)
 
     # AI Advisor
-    if advisor.api_key:
-        st.header("🤖 AI Business Advisor")
+    st.header("🤖 AI Business Advisor")
+    if not advisor._use_api():
+        st.info("Gemini is not configured, so this app is using sample/local advice instead.")
 
-        # Get current game state for AI
-        game_state = {
-            "current_day": game.current_day,
-            "money": game.tracker.money,
-            "total_sales": game.tracker.total_sales,
-            "total_revenue": game.tracker.total_revenue,
-            "total_profit": game.tracker.total_profit,
-            "countries": [{"name": c.name, "demand_level": c.demand_level, "shipping_cost": c.shipping_cost, "tax_rate": c.tax_rate} for c in game.countries],
-            "manufacturers": [{"name": m.name, "product": m.product, "unit_cost": m.unit_cost, "stock": m.stock, "quality": m.quality} for m in game.manufacturers],
-            "selling_sites": [{"name": s.name, "fee_rate": s.fee_rate, "traffic": s.traffic, "trust": s.trust} for s in game.selling_sites],
-            "recent_sales": [{"product": s.product, "quantity": s.quantity, "revenue": s.revenue, "profit": s.profit} for s in game.tracker.sales[-5:]],
-            "notes": game.notes
-        }
+    # Get current game state for AI
+    game_state = {
+        "current_day": game.current_day,
+        "money": game.tracker.money,
+        "total_sales": game.tracker.total_sales,
+        "total_revenue": game.tracker.total_revenue,
+        "total_profit": game.tracker.total_profit,
+        "countries": [{"name": c.name, "demand_level": c.demand_level, "shipping_cost": c.shipping_cost, "tax_rate": c.tax_rate} for c in game.countries],
+        "manufacturers": [{"name": m.name, "product": m.product, "unit_cost": m.unit_cost, "stock": m.stock, "quality": m.quality} for m in game.manufacturers],
+        "selling_sites": [{"name": s.name, "fee_rate": s.fee_rate, "traffic": s.traffic, "trust": s.trust} for s in game.selling_sites],
+        "recent_sales": [{"product": s.product, "quantity": s.quantity, "revenue": s.revenue, "profit": s.profit} for s in game.tracker.sales[-5:]],
+        "notes": game.notes
+    }
 
-        if st.button("🎯 Get Business Advice", key="ai_advice"):
-            with st.spinner("Getting AI insights..."):
-                advice = advisor.get_business_advice(game_state)
-                st.write(advice)
+    if st.button("🎯 Get Business Advice", key="ai_advice"):
+        with st.spinner("Getting AI insights..."):
+            advice = advisor.get_business_advice(game_state)
+            st.write(advice)
 
-        if st.button("📊 Market Analysis", key="market_analysis"):
-            with st.spinner("Analyzing market conditions..."):
-                analysis = advisor.get_market_analysis(game_state)
-                st.write(analysis)
+    if st.button("📊 Market Analysis", key="market_analysis"):
+        with st.spinner("Analyzing market conditions..."):
+            analysis = advisor.get_market_analysis(game_state)
+            st.write(analysis)
 
-        # Custom question
-        custom_question = st.text_input("Ask the AI advisor a specific question:", key="custom_question")
-        if st.button("❓ Ask AI", key="ask_ai") and custom_question:
-            with st.spinner("Getting personalized advice..."):
-                answer = advisor.get_strategy_recommendation(game_state, custom_question)
-                st.write(f"**Q:** {custom_question}")
-                st.write(f"**A:** {answer}")
-    else:
-        st.header("🤖 AI Advisor")
-        st.info("Set GEMINI_API_KEY environment variable to enable AI business advice.")
+    # Custom question
+    custom_question = st.text_input("Ask the AI advisor a specific question:", key="custom_question")
+    if st.button("❓ Ask AI", key="ask_ai") and custom_question:
+        with st.spinner("Getting personalized advice..."):
+            answer = advisor.get_strategy_recommendation(game_state, custom_question)
+            st.write(f"**Q:** {custom_question}")
+            st.write(f"**A:** {answer}")
 
     # Notes
     if game.notes:

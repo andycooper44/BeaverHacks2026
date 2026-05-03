@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 import os
 from typing import Optional, Dict, Any
-import google.generativeai as genai
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 
 
 @dataclass
@@ -10,48 +14,56 @@ class GeminiAdvisor:
     model_name: str = "gemini-1.5-flash"
     prompt: str = ""
     response_text: str = ""
-    model: Optional[Any] = None
+    is_available: bool = False
 
     def __post_init__(self):
-        """Initialize the Gemini model if API key is provided."""
-        if self.api_key:
+        """Initialize the Gemini client if the API key and package are available."""
+        if self.api_key and genai is not None:
             self._initialize_model()
 
     def _initialize_model(self) -> None:
-        """Initialize the Gemini API client."""
+        """Configure the Gemini API client."""
         try:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel(self.model_name)
+            self.is_available = True
         except Exception as e:
-            print(f"Failed to initialize Gemini model: {e}")
-            self.model = None
+            print(f"Failed to initialize Gemini client: {e}")
+            self.is_available = False
 
     def set_api_key(self, api_key: str) -> None:
-        """Set the API key and initialize the model."""
+        """Set the API key and initialize the client."""
         self.api_key = api_key
-        self._initialize_model()
+        if genai is not None:
+            self._initialize_model()
+
+    def _use_api(self) -> bool:
+        return genai is not None and self.api_key and self.is_available
+
+    def _generate(self, prompt: str) -> str:
+        if self._use_api():
+            response = genai.generate_text(model=self.model_name, prompt=prompt)
+            return getattr(response, "text", str(response))
+
+        return self._generate_sample_response(prompt)
+
+    def _generate_sample_response(self, prompt: str) -> str:
+        return (
+            "Sample business advice: focus on high-demand markets, keep inventory lean, "
+            "use low-fee platforms for best margins, and watch shipping plus tax costs. "
+            "This response is a local fallback so the app remains usable without Gemini."
+        )
 
     def get_business_advice(self, game_state: Dict[str, Any]) -> str:
         """Get business advice based on current game state."""
-        if not self.model:
-            return "Gemini API not configured. Set GEMINI_API_KEY environment variable."
-
         try:
-            # Create a detailed prompt about the business situation
             prompt = self._create_business_prompt(game_state)
-
-            response = self.model.generate_content(prompt)
-            self.response_text = response.text
+            self.response_text = self._generate(prompt)
             return self.response_text
-
         except Exception as e:
             return f"Error getting AI advice: {str(e)}"
 
     def get_market_analysis(self, game_state: Dict[str, Any]) -> str:
         """Analyze market conditions and provide insights."""
-        if not self.model:
-            return "Gemini API not configured."
-
         try:
             prompt = f"""Analyze the current dropshipping market conditions:
 
@@ -65,18 +77,12 @@ Provide insights on:
 5. Growth opportunities
 
 Be specific and actionable."""
-
-            response = self.model.generate_content(prompt)
-            return response.text
-
+            return self._generate(prompt)
         except Exception as e:
             return f"Error getting market analysis: {str(e)}"
 
     def get_strategy_recommendation(self, game_state: Dict[str, Any], question: str) -> str:
         """Get specific strategy advice for a question."""
-        if not self.model:
-            return "Gemini API not configured."
-
         try:
             prompt = f"""Dropshipping Business Strategy Question:
 
@@ -85,10 +91,7 @@ Game State: {game_state}
 Question: {question}
 
 Provide detailed, actionable advice for this dropshipping business scenario."""
-
-            response = self.model.generate_content(prompt)
-            return response.text
-
+            return self._generate(prompt)
         except Exception as e:
             return f"Error getting strategy recommendation: {str(e)}"
 
@@ -161,7 +164,7 @@ Be concise but specific."""
         """Format recent sales for the prompt."""
         if not sales:
             return "None"
-        recent = sales[-3:]  # Last 3 sales
+        recent = sales[-3:]
         return "\n".join([
             f"- {s.get('product', 'Unknown')}: {s.get('quantity', 0)} units, "
             f"Revenue ${s.get('revenue', 0):.2f}, Profit ${s.get('profit', 0):.2f}"

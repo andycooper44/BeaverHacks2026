@@ -79,30 +79,27 @@ def demo_gameplay():
     print(game.get_game_summary())
     print()
 
-    # Test Gemini AI (if API key available)
-    api_key = os.getenv("GEMINI_API_KEY")
-    if api_key:
-        print("🤖 Getting AI business advice...")
-        advisor = GeminiAdvisor(api_key=api_key)
+    # Test Gemini AI (fallback works without an API key)
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    advisor = GeminiAdvisor(api_key=api_key)
+    print("🤖 Gemini advisor is active. Using sample advice locally while Gemini is disabled.")
 
-        # Convert game state to dict for AI
-        game_state = {
-            "current_day": game.current_day,
-            "money": game.tracker.money,
-            "total_sales": game.tracker.total_sales,
-            "total_revenue": game.tracker.total_revenue,
-            "total_profit": game.tracker.total_profit,
-            "countries": [{"name": c.name, "demand_level": c.demand_level, "shipping_cost": c.shipping_cost, "tax_rate": c.tax_rate} for c in game.countries],
-            "manufacturers": [{"name": m.name, "product": m.product, "unit_cost": m.unit_cost, "stock": m.stock, "quality": m.quality} for m in game.manufacturers],
-            "selling_sites": [{"name": s.name, "fee_rate": s.fee_rate, "traffic": s.traffic, "trust": s.trust} for s in game.selling_sites],
-            "recent_sales": [{"product": s.product, "quantity": s.quantity, "revenue": s.revenue, "profit": s.profit} for s in game.tracker.sales[-3:]],
-            "notes": game.notes
-        }
+    # Convert game state to dict for AI
+    game_state = {
+        "current_day": game.current_day,
+        "money": game.tracker.money,
+        "total_sales": game.tracker.total_sales,
+        "total_revenue": game.tracker.total_revenue,
+        "total_profit": game.tracker.total_profit,
+        "countries": [{"name": c.name, "demand_level": c.demand_level, "shipping_cost": c.shipping_cost, "tax_rate": c.tax_rate} for c in game.countries],
+        "manufacturers": [{"name": m.name, "product": m.product, "unit_cost": m.unit_cost, "stock": m.stock, "quality": m.quality} for m in game.manufacturers],
+        "selling_sites": [{"name": s.name, "fee_rate": s.fee_rate, "traffic": s.traffic, "trust": s.trust} for s in game.selling_sites],
+        "recent_sales": [{"product": s.product, "quantity": s.quantity, "revenue": s.revenue, "profit": s.profit} for s in game.tracker.sales[-3:]],
+        "notes": game.notes
+    }
 
-        advice = advisor.get_business_advice(game_state)
-        print(f"AI Advice: {advice[:500]}..." if len(advice) > 500 else f"AI Advice: {advice}")
-    else:
-        print("🤖 Gemini API key not found. Set GEMINI_API_KEY environment variable to test AI features.")
+    advice = advisor.get_business_advice(game_state)
+    print(f"AI Advice: {advice[:500]}..." if len(advice) > 500 else f"AI Advice: {advice}")
 
 
 if __name__ == "__main__":
