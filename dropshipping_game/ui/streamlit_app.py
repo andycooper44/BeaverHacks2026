@@ -254,10 +254,11 @@ def main() -> None:
 
         # Manual sale section
         st.subheader("💸 Manual Sale")
-        if manufacturer_names and game.countries and game.selling_sites:
+        manufacturer_names_with_stock = [m.name for m in game.manufacturers if m.stock > 0]
+        if manufacturer_names_with_stock and game.countries and game.selling_sites:
             sale_manufacturer = st.selectbox(
                 "Product",
-                manufacturer_names,
+                manufacturer_names_with_stock,
                 key="sale_manufacturer"
             )
             manufacturer = next(m for m in game.manufacturers if m.name == sale_manufacturer)
