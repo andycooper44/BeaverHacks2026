@@ -8,6 +8,7 @@ class SaleRecord:
     revenue: float = 0.0
     cost: float = 0.0
     profit: float = 0.0
+    day: int = 0
 
 
 @dataclass
