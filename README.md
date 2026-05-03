@@ -16,7 +16,6 @@ You're running a dropshipping business! Buy products from manufacturers, sell th
 - Different countries have varying demand levels, shipping costs, and tax rates
 - Selling platforms have different fee structures and traffic levels
 - Market conditions change daily
-- AI advisor available (requires Gemini API key)
 
 ## Run
 
@@ -25,30 +24,6 @@ py -m pip install -r requirements.txt
 py -m streamlit run dropshipping_game/ui/streamlit_app.py
 ```
 
-## Gemini Setup
-
-Option 1: create a local `.env` file:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Then replace `your_api_key_here` inside `.env`.
-
-The default model is:
-
-```env
-GEMINI_MODEL=gemini-2.5-flash
-```
-
-Option 2: set your Gemini API key in PowerShell:
-
-```powershell
-setx GEMINI_API_KEY "your_api_key_here"
-```
-
-Restart your terminal if you use `setx`.
-
 ## Files
 
 - `dropshipping_game/game.py`: Main game logic and mechanics
@@ -56,16 +31,7 @@ Restart your terminal if you use `setx`.
 - `dropshipping_game/countries.py`: Country data (demand, costs, taxes)
 - `dropshipping_game/manufacturers.py`: Manufacturer data (products, pricing, stock)
 - `dropshipping_game/selling_sites.py`: Platform data (fees, traffic, trust)
-- `dropshipping_game/gemini_client.py`: AI advisor integration
 - `dropshipping_game/ui/streamlit_app.py`: Interactive web UI
-
-## AI Features
-
-Set `GEMINI_API_KEY` environment variable to enable AI-powered business advice.
-
-## Goal
-
-Set `GEMINI_API_KEY` when you are ready to test AI suggestions.
 
 ## Changelog
 

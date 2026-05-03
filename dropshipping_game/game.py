@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 
 from dropshipping_game.countries import Country, create_default_countries, find_country
-from dropshipping_game.gemini_client import GeminiAdvisor
 from dropshipping_game.manufacturers import (
     Manufacturer,
     create_default_manufacturers,
@@ -24,7 +23,6 @@ class DropshippingGame:
     manufacturers: list[Manufacturer] = field(default_factory=list)
     selling_sites: list[SellingSite] = field(default_factory=list)
     inventory: dict[str, int] = field(default_factory=dict)
-    advisor: GeminiAdvisor = field(default_factory=GeminiAdvisor)
     current_day: int = 1
     notes: str = ""
     rent_amount: float = 500.0
@@ -41,10 +39,7 @@ class DropshippingGame:
             self.tracker.money = 1000.0
 
     def get_available_actions(self) -> list[str]:
-        actions = ["Buy Products", "Sell Products", "Check Inventory", "View Stats", "Advance Day"]
-        if self.advisor.api_key:
-            actions.append("Get AI Advice")
-        return actions
+        return ["Buy Products", "Sell Products", "Check Inventory", "View Stats", "Advance Day"]
 
     def buy_products(self, manufacturer_name: str, quantity: int) -> str:
         manufacturer = find_manufacturer(self.manufacturers, manufacturer_name)
@@ -176,9 +171,6 @@ class DropshippingGame:
                 for sale in self.tracker.sales[-5:]
             ],
         }
-
-    def get_ai_advice(self) -> str:
-        return self.advisor.get_advice(self.snapshot())
 
     def _calculate_sale(
         self,

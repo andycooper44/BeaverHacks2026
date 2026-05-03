@@ -135,11 +135,6 @@ def main():
                 result = game.advance_day()
                 print(f"✅ {result}")
 
-            elif action == "Get AI Advice":
-                print("\n🤖 Getting AI advice...")
-                advice = game.get_ai_advice()
-                print(f"💡 {advice}")
-
         except KeyboardInterrupt:
             print("\n\n👋 Thanks for playing!")
             break

@@ -8,7 +8,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from dropshipping_game.game import DropshippingGame
-from dropshipping_game.gemini_client import GENAI_AVAILABLE
 
 
 def apply_page_styles() -> None:
@@ -210,25 +209,6 @@ def show_market_info(game: DropshippingGame) -> None:
             )
 
 
-def show_ai_advisor(game: DropshippingGame) -> None:
-    st.subheader("AI Advisor")
-    section_note("Gemini reads your current game state and recommends one next move.")
-    if not game.advisor.api_key:
-        st.info("Set GEMINI_API_KEY in .env to enable Gemini advice.")
-        return
-    if not GENAI_AVAILABLE:
-        st.warning("Gemini API key is set, but google-genai is not installed.")
-        return
-
-    if st.button("Get Advice"):
-        with st.spinner("Getting advice..."):
-            advice = game.get_ai_advice()
-            st.markdown(
-                f'<div class="advice-box">{advice}</div>',
-                unsafe_allow_html=True,
-            )
-
-
 def main() -> None:
     st.set_page_config(page_title="Dropshipping Empire", page_icon="DE", layout="wide")
     apply_page_styles()
@@ -247,7 +227,7 @@ def main() -> None:
 
     action = st.sidebar.radio(
         "Choose Action",
-        ["Buy Products", "Sell Products", "View Stats", "AI Advisor"],
+        ["Buy Products", "Sell Products", "View Stats"],
     )
 
     if action == "Buy Products":
@@ -256,8 +236,6 @@ def main() -> None:
         show_sell_products(game)
     elif action == "View Stats":
         show_stats(game)
-    elif action == "AI Advisor":
-        show_ai_advisor(game)
 
     show_market_info(game)
 
