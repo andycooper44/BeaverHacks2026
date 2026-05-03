@@ -121,8 +121,8 @@ def main():
                     print("\n📦 No products in inventory.")
 
             elif action == "View Stats":
-                print("
-📈 Game Statistics:"                print(f"  Total Sales: {game.tracker.total_sales}")
+                print("\n📈 Game Statistics:")
+                print(f"  Total Sales: {game.tracker.total_sales}")
                 print(f"  Total Revenue: ${game.tracker.total_revenue:.2f}")
                 print(f"  Total Profit: ${game.tracker.total_profit:.2f}")
 

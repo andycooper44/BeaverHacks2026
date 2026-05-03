@@ -54,6 +54,8 @@ class DropshippingGame:
     def get_available_actions(self) -> list[str]:
         """Get list of available player actions"""
         actions = ["Buy Products", "Sell Products", "Check Inventory", "View Stats", "Advance Day"]
+        if self.advisor.api_key:
+            actions.append("Get AI Advice")
         return actions
 
     def buy_products(self, manufacturer_name: str, quantity: int) -> str:
@@ -159,6 +161,8 @@ Inventory:
 """
         for product, qty in self.inventory.items():
             status += f"- {product}: {qty}\n"
+
+        return status.strip()
 
     def get_ai_advice(self) -> str:
         """Get AI-powered business advice"""

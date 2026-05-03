@@ -33,8 +33,6 @@ def main() -> None:
     # Action selection
     st.header("🎯 Choose Action")
     actions = game.get_available_actions()
-    if game.advisor.api_key:
-        actions.append("Get AI Advice")
     action = st.selectbox("What would you like to do?", actions)
 
     if action == "Buy Products":
