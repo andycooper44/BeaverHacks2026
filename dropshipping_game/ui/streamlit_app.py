@@ -3,408 +3,263 @@ from pathlib import Path
 
 import streamlit as st
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# Initialize game state in session
-if 'game' not in st.session_state:
-    st.session_state.game = create_sample_game()
-
-if 'advisor' not in st.session_state:
-    api_key = os.getenv("GEMINI_API_KEY", "")
-    st.session_state.advisor = GeminiAdvisor(api_key=api_key)
-
-if 'day_summary' not in st.session_state:
-    st.session_state.day_summary = ""
-
-if 'tutorial_step' not in st.session_state:
-    st.session_state.tutorial_step = 1  # Start tutorial on first load
-
-game: DropshippingGame = st.session_state.game
-advisor: GeminiAdvisor = st.session_state.advisor
+from dropshipping_game.game import DropshippingGame
+from dropshipping_game.gemini_client import GENAI_AVAILABLE
 
 
-def main() -> None:
-    # Tutorial dialogs
-    if st.session_state.tutorial_step == 1:
-        @st.dialog("Welcome to Dropshipping Empire! 🎉")
-        def tutorial_step_1():
-            st.write("Welcome to your dropshipping business simulation!")
-            st.write("This tutorial will guide you through the game features.")
-            st.write("Click 'Next' to continue.")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("Next", key="tut_next_1"):
-                    st.session_state.tutorial_step = 2
-                    st.rerun()
-            with col2:
-                if st.button("Skip Tutorial", key="tut_skip"):
-                    st.session_state.tutorial_step = 0
-                    st.rerun()
-        tutorial_step_1()
+def apply_page_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 3rem;
+        }
 
-    elif st.session_state.tutorial_step == 2:
-        @st.dialog("Business Overview 📊")
-        def tutorial_step_2():
-            st.write("This section shows your current business status:")
-            st.write("- **Day**: How many days you've been running the business")
-            st.write("- **Money**: Your current cash balance")
-            st.write("- **Total Sales**: Units sold so far")
-            st.write("- **Total Profit**: Overall profit made")
-            if st.button("Next", key="tut_next_2"):
-                st.session_state.tutorial_step = 3
-                st.rerun()
-        tutorial_step_2()
+        .app-banner {
+            border: 1px solid rgba(49, 51, 63, 0.18);
+            border-left: 6px solid #2e8b6d;
+            background: var(--secondary-background-color);
+            padding: 1.2rem 1.4rem;
+            border-radius: 8px;
+            margin-bottom: 1.2rem;
+        }
 
-    elif st.session_state.tutorial_step == 3:
-        @st.dialog("Game Actions 🎮")
-        def tutorial_step_3():
-            st.write("The sidebar contains your main game actions:")
-            st.write("- **Advance Day**: Simulate a day passing with automatic sales and events")
-            st.write("- **Buy Inventory**: Purchase products from manufacturers")
-            st.write("- **Manual Sale**: Sell products directly at custom prices")
-            if st.button("Next", key="tut_next_3"):
-                st.session_state.tutorial_step = 4
-                st.rerun()
-        tutorial_step_3()
+        .app-banner h1 {
+            margin: 0;
+            color: var(--text-color);
+            font-size: 2.1rem;
+        }
 
-    elif st.session_state.tutorial_step == 4:
-        @st.dialog("Buying Inventory 🛒")
-        def tutorial_step_4():
-            st.write("To buy inventory:")
-            st.write("1. Select a manufacturer from the dropdown")
-            st.write("2. Choose the quantity you want to buy")
-            st.write("3. Check the total cost")
-            st.write("4. Click 'Purchase' if you have enough money")
-            st.write("Products will be added to your stock for selling.")
-            if st.button("Next", key="tut_next_4"):
-                st.session_state.tutorial_step = 5
-                st.rerun()
-        tutorial_step_4()
+        .app-banner p {
+            margin: 0.35rem 0 0;
+            color: var(--text-color);
+            font-size: 1rem;
+            opacity: 0.88;
+        }
 
-    elif st.session_state.tutorial_step == 5:
-        @st.dialog("Manual Sales 💸")
-        def tutorial_step_5():
-            st.write("To make a manual sale:")
-            st.write("1. Select the product (manufacturer)")
-            st.write("2. Choose quantity to sell (can't exceed stock)")
-            st.write("3. Set your selling price per unit")
-            st.write("4. Pick the country (affects shipping/tax)")
-            st.write("5. Choose the sales platform (affects fees)")
-            st.write("6. Click 'Sell' to complete the transaction")
-            if st.button("Next", key="tut_next_5"):
-                st.session_state.tutorial_step = 6
-                st.rerun()
-        tutorial_step_5()
+        .section-note {
+            color: var(--text-color);
+            margin-top: -0.35rem;
+            margin-bottom: 0.8rem;
+            opacity: 0.78;
+        }
 
-    elif st.session_state.tutorial_step == 6:
-        @st.dialog("Markets 🌍")
-        def tutorial_step_6():
-            st.write("Markets (Countries) have different characteristics:")
-            st.write("- **Demand Level**: How much people want to buy (higher = more sales)")
-            st.write("- **Shipping Cost**: Cost to ship per unit")
-            st.write("- **Tax Rate**: Percentage tax on sales")
-            st.write("Choose countries that match your strategy!")
-            if st.button("Next", key="tut_next_6"):
-                st.session_state.tutorial_step = 7
-                st.rerun()
-        tutorial_step_6()
+        .inventory-line {
+            border: 1px solid rgba(49, 51, 63, 0.18);
+            border-left: 4px solid #c76b21;
+            padding: 0.55rem 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 0.4rem;
+            background: var(--secondary-background-color);
+            color: var(--text-color);
+        }
 
-    elif st.session_state.tutorial_step == 7:
-        @st.dialog("Suppliers 🏭")
-        def tutorial_step_7():
-            st.write("Manufacturers supply your products:")
-            st.write("- **Unit Cost**: Price to buy each item")
-            st.write("- **Stock**: How many you currently have")
-            st.write("- **Quality**: Affects automatic sales (higher = better)")
-            st.write("Buy from suppliers with good quality-to-cost ratios!")
-            if st.button("Next", key="tut_next_7"):
-                st.session_state.tutorial_step = 8
-                st.rerun()
-        tutorial_step_7()
+        .inventory-line strong {
+            color: var(--text-color);
+        }
 
-    elif st.session_state.tutorial_step == 8:
-        @st.dialog("Sales Platforms 🛒")
-        def tutorial_step_8():
-            st.write("Platforms where you sell products:")
-            st.write("- **Fee Rate**: Commission they take per sale")
-            st.write("- **Traffic**: How many potential customers (higher = more sales)")
-            st.write("- **Trust**: Customer confidence (affects conversions)")
-            st.write("Balance fees vs. traffic when choosing platforms!")
-            if st.button("Next", key="tut_next_8"):
-                st.session_state.tutorial_step = 9
-                st.rerun()
-        tutorial_step_8()
+        .advice-box {
+            border: 1px solid rgba(49, 51, 63, 0.18);
+            border-left: 4px solid #5267b0;
+            padding: 0.8rem 1rem;
+            border-radius: 6px;
+            background: var(--secondary-background-color);
+            color: var(--text-color);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    elif st.session_state.tutorial_step == 9:
-        @st.dialog("AI Business Advisor 🤖")
-        def tutorial_step_9():
-            st.write("The AI advisor can help you:")
-            st.write("- Get business advice based on your current state")
-            st.write("- Analyze market conditions")
-            st.write("- Answer specific strategy questions")
-            st.write("Set GEMINI_API_KEY for real AI, otherwise uses sample advice.")
-            if st.button("Next", key="tut_next_9"):
-                st.session_state.tutorial_step = 10
-                st.rerun()
-        tutorial_step_9()
 
-    elif st.session_state.tutorial_step == 10:
-        @st.dialog("Gameplay Loop 🔄")
-        def tutorial_step_10():
-            st.write("The main gameplay loop:")
-            st.write("1. **Buy inventory** from manufacturers")
-            st.write("2. **Advance day** to simulate sales and events")
-            st.write("3. **Check results** in Business Overview")
-            st.write("4. **Make manual sales** for extra profit")
-            st.write("5. **Use AI advisor** for strategy tips")
-            st.write("6. Repeat and grow your business!")
-            st.write("Events happen randomly each day - adapt your strategy!")
-            if st.button("Start Playing!", key="tut_finish"):
-                st.session_state.tutorial_step = 0  # End tutorial
-                st.rerun()
-        tutorial_step_10()
+def show_page_banner() -> None:
+    st.markdown(
+        """
+        <div class="app-banner">
+            <h1>Dropshipping Empire</h1>
+            <p>Buy inventory, choose markets, manage platform fees, and grow profit before rent comes due.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    st.title("🚀 Dropshipping Empire")
 
-    # Initialize game in session state
+def section_note(text: str) -> None:
+    st.markdown(f'<div class="section-note">{text}</div>', unsafe_allow_html=True)
+
+
+def get_game() -> DropshippingGame:
     if "game" not in st.session_state:
         st.session_state.game = DropshippingGame()
+    return st.session_state.game
 
-        if st.button("📚 Tutorial", key="restart_tutorial"):
-            st.session_state.tutorial_step = 1
-            st.rerun()
 
-        st.divider()
+def show_status(game: DropshippingGame) -> None:
+    st.header("Business Overview")
+    section_note("A quick read on cash, sales progress, inventory pressure, and rent timing.")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Day", game.current_day)
+    col2.metric("Money", f"${game.tracker.money:.2f}")
+    col3.metric("Total Sales", game.tracker.total_sales)
+    col4.metric("Total Profit", f"${game.tracker.total_profit:.2f}")
+    col5.metric("Days Until Rent", game.days_until_rent)
 
-        if st.button("⏭️ Advance Day", type="primary"):
-            with st.spinner("Processing day..."):
-                st.session_state.day_summary = game.advance_day()
-                st.rerun()
-
-    if game.advisor.api_key:
-        if GENAI_AVAILABLE:
-            st.success("🤖 Gemini AI advisor enabled")
-        else:
-            st.warning(
-                "Gemini API key set, but the required library is missing. Install google-genai."
+    if game.inventory:
+        st.subheader("Inventory")
+        for product, quantity in game.inventory.items():
+            st.markdown(
+                f'<div class="inventory-line"><strong>{product}</strong>: {quantity} units ready to sell</div>',
+                unsafe_allow_html=True,
             )
     else:
-        st.info("Gemini AI advisor disabled. Set GEMINI_API_KEY to enable AI advice.")
+        st.info("No inventory yet. Buy products to start selling.")
 
-    # Game status
-    st.header("📊 Game Status")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Day", game.current_day)
-        st.metric("Money", f"${game.tracker.money:.2f}")
-    with col2:
-        st.metric("Total Sales", game.tracker.total_sales)
-        st.metric("Total Profit", f"${game.tracker.total_profit:.2f}")
-    with col3:
-        st.metric("Inventory Items", sum(game.inventory.values()))
 
-    # Inventory
-    if game.inventory:
-        st.subheader("📦 Inventory")
-        for product, qty in game.inventory.items():
-            st.write(f"- {product}: {qty}")
+def show_buy_products(game: DropshippingGame) -> None:
+    st.subheader("Buy Products")
+    section_note("Pick a supplier and buy stock. Your cash drops now, but inventory creates selling options.")
+    manufacturer_options = [
+        f"{manufacturer.name} - {manufacturer.product} (${manufacturer.unit_cost:.2f}, stock: {manufacturer.stock})"
+        for manufacturer in game.manufacturers
+    ]
+    selected = st.selectbox("Manufacturer", manufacturer_options)
+    quantity = st.number_input("Quantity", min_value=1, value=10, step=1)
 
-    # Action selection
-    st.header("🎯 Choose Action")
-    actions = game.get_available_actions()
-    action = st.selectbox("What would you like to do?", actions)
+    if st.button("Buy"):
+        manufacturer_name = selected.split(" - ", 1)[0]
+        st.success(game.buy_products(manufacturer_name, int(quantity)))
+        st.rerun()
 
-    if action == "Buy Products":
-        st.subheader("🛒 Buy Products")
-        col1, col2 = st.columns(2)
 
-        with col1:
-            manufacturer_options = [
-                f"{m.name} - {m.product} (${m.unit_cost:.2f}, stock: {m.stock})"
-                for m in game.manufacturers
-            ]
-            selected_manufacturer = st.selectbox(
-                "Choose manufacturer:", manufacturer_options
-            )
+def show_sell_products(game: DropshippingGame) -> None:
+    st.subheader("Sell Products")
+    section_note("Choose where to sell. Demand, fees, shipping, and taxes all affect profit.")
+    if not game.inventory:
+        st.warning("No products in inventory to sell.")
+        return
 
-        with col2:
-            quantity = st.number_input("Quantity:", min_value=1, value=10)
+    product = st.selectbox("Product", list(game.inventory.keys()))
+    site = st.selectbox(
+        "Selling Site",
+        [selling_site.name for selling_site in game.selling_sites],
+    )
+    country = st.selectbox("Country", [market.name for market in game.countries])
+    max_quantity = game.inventory[product]
+    quantity = st.number_input(
+        "Quantity",
+        min_value=1,
+        max_value=max_quantity,
+        value=1,
+        step=1,
+    )
 
-        if st.button("Buy"):
-            manufacturer_name = selected_manufacturer.split(" - ")[0]
-            result = game.buy_products(manufacturer_name, quantity)
-            st.success(result)
-            st.rerun()
+    if st.button("Sell"):
+        st.success(game.sell_products(product, site, country, int(quantity)))
+        st.rerun()
 
-    elif action == "Sell Products":
-        st.subheader("💰 Sell Products")
-        if not game.inventory:
-            st.warning("No products in inventory to sell!")
-        else:
-            col1, col2, col3 = st.columns(3)
 
-            with col1:
-                product_options = list(game.inventory.keys())
-                selected_product = st.selectbox("Choose product:", product_options)
+def show_stats(game: DropshippingGame) -> None:
+    st.subheader("Sales Stats")
+    section_note("Recent performance helps you spot which products and markets are worth repeating.")
+    st.write(f"Total Revenue: ${game.tracker.total_revenue:.2f}")
+    st.write(f"Total Profit: ${game.tracker.total_profit:.2f}")
+    st.write(f"Total Sales Volume: {game.tracker.total_sales}")
 
-            with col2:
-                site_options = [s.name for s in game.selling_sites]
-                selected_site = st.selectbox("Choose selling site:", site_options)
-
-            with col3:
-                country_options = [c.name for c in game.countries]
-                selected_country = st.selectbox(
-                    "Choose target country:", country_options
-                )
-
-        # Manual sale section
-        st.subheader("💸 Manual Sale")
-        manufacturer_names_with_stock = [m.name for m in game.manufacturers if m.stock > 0]
-        if manufacturer_names_with_stock and game.countries and game.selling_sites:
-            sale_manufacturer = st.selectbox(
-                "Product",
-                manufacturer_names_with_stock,
-                key="sale_manufacturer"
-            )
-            manufacturer = next(m for m in game.manufacturers if m.name == sale_manufacturer)
-
-            if st.button("Sell"):
-                result = game.sell_products(
-                    selected_product, selected_site, selected_country, quantity
-                )
-                st.success(result)
-                st.rerun()
-
-    # Main content
-    # Game Overview
-    st.header("📊 Business Overview")
-    if st.session_state.day_summary:
-        st.info(st.session_state.day_summary)
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        st.metric("Day", game.current_day)
-    with col2:
-        st.metric("Money", f"${game.tracker.money:.2f}")
-    with col3:
-        st.metric("Total Sales", game.tracker.total_sales)
-    with col4:
-        st.metric("Total Profit", f"${game.tracker.total_profit:.2f}")
-    with col5:
-        st.metric("Days Until Rent", game.days_until_rent)
-
-    # Sales Tracker
     if game.tracker.sales:
-        st.header("💰 Recent Sales")
-        sales_df = [
+        rows = [
             {
                 "Day": sale.day,
                 "Product": sale.product,
                 "Quantity": sale.quantity,
-                "Revenue": f"${sale.revenue:.2f}",
-                "Cost": f"${sale.cost:.2f}",
-                "Profit": f"${sale.profit:.2f}"
+                "Revenue": round(sale.revenue, 2),
+                "Cost": round(sale.cost, 2),
+                "Profit": round(sale.profit, 2),
             }
-            for sale in game.tracker.sales[-10:]  # Show last 10 sales
+            for sale in game.tracker.sales[-10:]
         ]
-        st.dataframe(sales_df, use_container_width=True)
+        st.dataframe(rows, use_container_width=True)
 
-        # Sales Chart
-        st.subheader("📈 Profit Over Time")
-        # Aggregate profit by day
-        profit_by_day = {}
-        for sale in game.tracker.sales:
-            profit_by_day[sale.day] = profit_by_day.get(sale.day, 0) + sale.profit
 
-        if profit_by_day:
-            days = sorted(profit_by_day.keys())
-            profits = [profit_by_day[day] for day in days]
-            chart_data = {"Day": days, "Daily Profit": profits}
-            st.line_chart(chart_data, x="Day", y="Daily Profit")
-        else:
-            st.write("No sales data yet.")
+def show_market_info(game: DropshippingGame) -> None:
+    with st.expander("Market Information"):
+        st.caption("Reference data for choosing products, markets, and selling platforms.")
+        st.subheader("Countries")
+        for country in game.countries:
+            st.write(
+                f"- **{country.name}**: demand {country.demand_level:.2f}, "
+                f"shipping ${country.shipping_cost:.2f}, tax {country.tax_rate:.1%}"
+            )
 
-    # Countries
-    if game.countries:
-        st.header("🌍 Markets")
-        cols = st.columns(min(3, len(game.countries)))
-        for i, country in enumerate(game.countries):
-            with cols[i % len(cols)]:
-                with st.expander(f"📍 {country.name}"):
-                    st.metric("Demand Level", f"{country.demand_level:.1f}")
-                    st.metric("Shipping Cost", f"${country.shipping_cost:.2f}")
-                    st.metric("Tax Rate", f"{country.tax_rate:.1%}")
-                    if country.notes:
-                        st.caption(country.notes)
+        st.subheader("Manufacturers")
+        for manufacturer in game.manufacturers:
+            st.write(
+                f"- **{manufacturer.name}**: {manufacturer.product}, "
+                f"unit cost ${manufacturer.unit_cost:.2f}, stock {manufacturer.stock}"
+            )
 
-    # Manufacturers
-    if game.manufacturers:
-        st.header("🏭 Suppliers")
-        cols = st.columns(min(3, len(game.manufacturers)))
-        for i, manufacturer in enumerate(game.manufacturers):
-            with cols[i % len(cols)]:
-                with st.expander(f"🏭 {manufacturer.name}"):
-                    st.metric("Product", manufacturer.product)
-                    st.metric("Unit Cost", f"${manufacturer.unit_cost:.2f}")
-                    st.metric("Stock", manufacturer.stock)
-                    st.metric("Quality", f"{manufacturer.quality:.1f}")
-                    if manufacturer.notes:
-                        st.caption(manufacturer.notes)
+        st.subheader("Selling Sites")
+        for site in game.selling_sites:
+            st.write(
+                f"- **{site.name}**: fee {site.fee_rate:.1%}, "
+                f"traffic {site.traffic:.2f}, trust {site.trust:.2f}"
+            )
 
-    # Selling Sites
-    if game.selling_sites:
-        st.header("🛒 Sales Platforms")
-        cols = st.columns(min(3, len(game.selling_sites)))
-        for i, site in enumerate(game.selling_sites):
-            with cols[i % len(cols)]:
-                with st.expander(f"🛒 {site.name}"):
-                    st.metric("Fee Rate", f"{site.fee_rate:.1%}")
-                    st.metric("Traffic", f"{site.traffic:.1f}")
-                    st.metric("Trust", f"{site.trust:.1f}")
-                    if site.notes:
-                        st.caption(site.notes)
 
-    # AI Advisor
-    if advisor.api_key:
-        st.header("🤖 AI Business Advisor")
+def show_ai_advisor(game: DropshippingGame) -> None:
+    st.subheader("AI Advisor")
+    section_note("Gemini reads your current game state and recommends one next move.")
+    if not game.advisor.api_key:
+        st.info("Set GEMINI_API_KEY in .env to enable Gemini advice.")
+        return
+    if not GENAI_AVAILABLE:
+        st.warning("Gemini API key is set, but google-genai is not installed.")
+        return
 
-        # Get current game state for AI
-        game_state = {
-            "current_day": game.current_day,
-            "money": game.tracker.money,
-            "total_sales": game.tracker.total_sales,
-            "total_revenue": game.tracker.total_revenue,
-            "total_profit": game.tracker.total_profit,
-            "countries": [{"name": c.name, "demand_level": c.demand_level, "shipping_cost": c.shipping_cost, "tax_rate": c.tax_rate} for c in game.countries],
-            "manufacturers": [{"name": m.name, "product": m.product, "unit_cost": m.unit_cost, "stock": m.stock, "quality": m.quality} for m in game.manufacturers],
-            "selling_sites": [{"name": s.name, "fee_rate": s.fee_rate, "traffic": s.traffic, "trust": s.trust} for s in game.selling_sites],
-            "recent_sales": [{"product": s.product, "quantity": s.quantity, "revenue": s.revenue, "profit": s.profit} for s in game.tracker.sales[-5:]],
-            "notes": game.notes
-        }
+    if st.button("Get Advice"):
+        with st.spinner("Getting advice..."):
+            advice = game.get_ai_advice()
+            st.markdown(
+                f'<div class="advice-box">{advice}</div>',
+                unsafe_allow_html=True,
+            )
 
-        if st.button("🎯 Get Business Advice", key="ai_advice"):
-            with st.spinner("Getting AI insights..."):
-                advice = advisor.get_business_advice(game_state)
-                st.write(advice)
 
-        if st.button("📊 Market Analysis", key="market_analysis"):
-            with st.spinner("Analyzing market conditions..."):
-                analysis = advisor.get_market_analysis(game_state)
-                st.write(analysis)
+def main() -> None:
+    st.set_page_config(page_title="Dropshipping Empire", page_icon="DE", layout="wide")
+    apply_page_styles()
+    show_page_banner()
 
-        # Custom question
-        custom_question = st.text_input("Ask the AI advisor a specific question:", key="custom_question")
-        if st.button("❓ Ask AI", key="ask_ai") and custom_question:
-            with st.spinner("Getting personalized advice..."):
-                answer = advisor.get_strategy_recommendation(game_state, custom_question)
-                st.write(f"**Q:** {custom_question}")
-                st.write(f"**A:** {answer}")
-    else:
-        st.header("🤖 AI Advisor")
-        st.info("Set GEMINI_API_KEY environment variable to enable AI business advice.")
+    game = get_game()
+    show_status(game)
 
-    # Notes
-    if game.notes:
-        st.header("📝 Business Notes")
-        st.write(game.notes)
+    st.sidebar.header("Actions")
+    if st.sidebar.button("Advance Day"):
+        st.session_state.day_summary = game.advance_day()
+        st.rerun()
+
+    if "day_summary" in st.session_state:
+        st.info(st.session_state.day_summary)
+
+    action = st.sidebar.radio(
+        "Choose Action",
+        ["Buy Products", "Sell Products", "View Stats", "AI Advisor"],
+    )
+
+    if action == "Buy Products":
+        show_buy_products(game)
+    elif action == "Sell Products":
+        show_sell_products(game)
+    elif action == "View Stats":
+        show_stats(game)
+    elif action == "AI Advisor":
+        show_ai_advisor(game)
+
+    show_market_info(game)
 
 
 if __name__ == "__main__":

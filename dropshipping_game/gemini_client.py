@@ -1,4 +1,5 @@
 import os
+from typing import Any
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -67,21 +68,16 @@ class GeminiAdvisor:
         if not self.model_name:
             self.model_name = load_env_value("GEMINI_MODEL") or "gemini-2.5-flash"
 
-    def get_advice(self, game_state: str) -> str:
-        """Get AI advice based on current game state"""
+    def get_advice(self, game_state: dict[str, Any] | str) -> str:
+        """Get advice using the current game state."""
+
         if not self.api_key:
             return "No Gemini API key set. Add GEMINI_API_KEY to .env or your environment."
 
         if not GENAI_AVAILABLE:
             return "Google Gemini AI library not installed. Run 'pip install google-genai' for AI advice."
 
-        prompt = f"""
-You are an expert dropshipping business advisor. Based on this game state, give one strategic tip (2-3 sentences max):
-
-{game_state}
-
-What should the player focus on next?
-"""
+        prompt = self._build_game_advice_prompt(game_state)
 
         try:
             if GENAI_MODERN:
@@ -102,3 +98,21 @@ What should the player focus on next?
             return str(response)
         except Exception as e:
             return f"Error getting AI advice: {str(e)}"
+
+    def _build_game_advice_prompt(self, game_state: dict[str, Any] | str) -> str:
+        return f"""
+You are the in-game advisor for a dropshipping simulation game.
+
+Use only the game state below. Give advice that directly references the player's current money,
+inventory, sales history, available manufacturers, countries, selling sites, rent timer, and profit.
+
+Your response must be practical for the next turn:
+- Recommend exactly one next action.
+- Mention the specific product, supplier, market, or selling site when relevant.
+- Explain the reason in terms of profit, risk, inventory, demand, fees, shipping, tax, or rent.
+- Keep it under 120 words.
+- Do not give generic real-world dropshipping advice that is not tied to this game state.
+
+Game state:
+{game_state}
+""".strip()
