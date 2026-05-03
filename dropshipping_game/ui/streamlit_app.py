@@ -305,6 +305,7 @@ def main() -> None:
         st.header("💰 Recent Sales")
         sales_df = [
             {
+                "Day": sale.day,
                 "Product": sale.product,
                 "Quantity": sale.quantity,
                 "Revenue": f"${sale.revenue:.2f}",
@@ -314,6 +315,21 @@ def main() -> None:
             for sale in game.tracker.sales[-10:]  # Show last 10 sales
         ]
         st.dataframe(sales_df, use_container_width=True)
+
+        # Sales Chart
+        st.subheader("📈 Profit Over Time")
+        # Aggregate profit by day
+        profit_by_day = {}
+        for sale in game.tracker.sales:
+            profit_by_day[sale.day] = profit_by_day.get(sale.day, 0) + sale.profit
+
+        if profit_by_day:
+            days = sorted(profit_by_day.keys())
+            profits = [profit_by_day[day] for day in days]
+            chart_data = {"Day": days, "Daily Profit": profits}
+            st.line_chart(chart_data, x="Day", y="Daily Profit")
+        else:
+            st.write("No sales data yet.")
 
     # Countries
     if game.countries:

@@ -91,7 +91,8 @@ class DropshippingGame:
             quantity=quantity,
             revenue=total_revenue,
             cost=total_cost,
-            profit=profit
+            profit=profit,
+            day=self.current_day
         )
 
         self.tracker.sales.append(sale)
@@ -146,7 +147,8 @@ class DropshippingGame:
                 quantity=actual_sales,
                 revenue=total_revenue,
                 cost=total_cost,
-                profit=profit
+                profit=profit,
+                day=self.current_day
             )
 
             self.tracker.sales.append(sale)
