@@ -54,6 +54,9 @@ if 'advisor' not in st.session_state:
     api_key = os.getenv("GEMINI_API_KEY", "")
     st.session_state.advisor = GeminiAdvisor(api_key=api_key)
 
+if 'day_summary' not in st.session_state:
+    st.session_state.day_summary = ""
+
 game: DropshippingGame = st.session_state.game
 advisor: GeminiAdvisor = st.session_state.advisor
 
@@ -67,8 +70,7 @@ def main() -> None:
 
         if st.button("⏭️ Advance Day", type="primary"):
             with st.spinner("Processing day..."):
-                summary = game.advance_day()
-                st.success(summary)
+                st.session_state.day_summary = game.advance_day()
                 st.rerun()
 
         st.divider()
@@ -135,6 +137,8 @@ def main() -> None:
     # Main content
     # Game Overview
     st.header("📊 Business Overview")
+    if st.session_state.day_summary:
+        st.info(st.session_state.day_summary)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Day", game.current_day)
