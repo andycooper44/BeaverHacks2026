@@ -31,4 +31,7 @@ Set `GEMINI_API_KEY` when you are ready to test AI suggestions.
 
 Sayer:
 -Added a more descriptive UI in streamlit, Including placement of iteractability.
--
+-added message every day to display sales and events
+-Added tutorial
+-Added graph of recent sales 
+-fixed crash when stock was zero
