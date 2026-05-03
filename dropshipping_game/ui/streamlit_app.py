@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+
 import streamlit as st
 
 
@@ -163,7 +166,7 @@ def main() -> None:
     st.title("🚀 Dropshipping Empire")
 
     # Initialize game in session state
-    if 'game' not in st.session_state:
+    if "game" not in st.session_state:
         st.session_state.game = DropshippingGame()
 
         if st.button("📚 Tutorial", key="restart_tutorial"):
@@ -181,7 +184,9 @@ def main() -> None:
         if GENAI_AVAILABLE:
             st.success("🤖 Gemini AI advisor enabled")
         else:
-            st.warning("Gemini API key set, but the required library is missing. Install google-genai.")
+            st.warning(
+                "Gemini API key set, but the required library is missing. Install google-genai."
+            )
     else:
         st.info("Gemini AI advisor disabled. Set GEMINI_API_KEY to enable AI advice.")
 
@@ -213,8 +218,13 @@ def main() -> None:
         col1, col2 = st.columns(2)
 
         with col1:
-            manufacturer_options = [f"{m.name} - {m.product} (${m.unit_cost:.2f}, stock: {m.stock})" for m in game.manufacturers]
-            selected_manufacturer = st.selectbox("Choose manufacturer:", manufacturer_options)
+            manufacturer_options = [
+                f"{m.name} - {m.product} (${m.unit_cost:.2f}, stock: {m.stock})"
+                for m in game.manufacturers
+            ]
+            selected_manufacturer = st.selectbox(
+                "Choose manufacturer:", manufacturer_options
+            )
 
         with col2:
             quantity = st.number_input("Quantity:", min_value=1, value=10)
@@ -242,7 +252,9 @@ def main() -> None:
 
             with col3:
                 country_options = [c.name for c in game.countries]
-                selected_country = st.selectbox("Choose target country:", country_options)
+                selected_country = st.selectbox(
+                    "Choose target country:", country_options
+                )
 
         # Manual sale section
         st.subheader("💸 Manual Sale")
@@ -256,7 +268,9 @@ def main() -> None:
             manufacturer = next(m for m in game.manufacturers if m.name == sale_manufacturer)
 
             if st.button("Sell"):
-                result = game.sell_products(selected_product, selected_site, selected_country, quantity)
+                result = game.sell_products(
+                    selected_product, selected_site, selected_country, quantity
+                )
                 st.success(result)
                 st.rerun()
 

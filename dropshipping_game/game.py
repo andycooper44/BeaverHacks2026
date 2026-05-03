@@ -1,11 +1,20 @@
 from dataclasses import dataclass, field
-import random
 
-from dropshipping_game.countries import Country
-from dropshipping_game.manufacturers import Manufacturer
-from dropshipping_game.selling_sites import SellingSite
-from dropshipping_game.tracker import SalesTracker
+from dropshipping_game.countries import Country, create_default_countries, find_country
 from dropshipping_game.gemini_client import GeminiAdvisor
+from dropshipping_game.manufacturers import (
+    Manufacturer,
+    create_default_manufacturers,
+    find_manufacturer,
+    get_base_price,
+    get_unit_cost,
+)
+from dropshipping_game.selling_sites import (
+    SellingSite,
+    create_default_selling_sites,
+    find_selling_site,
+)
+from dropshipping_game.tracker import SaleRecord, SalesTracker
 
 
 @dataclass
@@ -54,14 +63,14 @@ class DropshippingGame:
 
     def buy_products(self, manufacturer_name: str, quantity: int) -> str:
         """Buy products from a manufacturer"""
-        manufacturer = next((m for m in self.manufacturers if m.name == manufacturer_name), None)
+        manufacturer = find_manufacturer(self.manufacturers, manufacturer_name)
         if not manufacturer:
             return f"Manufacturer {manufacturer_name} not found."
 
-        if quantity > manufacturer.stock:
+        if not manufacturer.can_fulfill(quantity):
             return f"Not enough stock. Available: {manufacturer.stock}"
 
-        total_cost = manufacturer.unit_cost * quantity
+        total_cost = manufacturer.purchase_cost(quantity)
         if total_cost > self.tracker.money:
             return f"Not enough money. Need ${total_cost:.2f}, have ${self.tracker.money:.2f}"
 
@@ -107,37 +116,24 @@ class DropshippingGame:
         if product not in self.inventory or self.inventory[product] < quantity:
             return f"Not enough {product} in inventory. Have: {self.inventory.get(product, 0)}"
 
-        site = next((s for s in self.selling_sites if s.name == site_name), None)
-        country = next((c for c in self.countries if c.name == country_name), None)
+        site = find_selling_site(self.selling_sites, site_name)
+        country = find_country(self.countries, country_name)
 
         if not site or not country:
             return "Invalid site or country."
 
-        # Calculate pricing and costs
-        base_price = self._get_base_price(product)
-        demand_multiplier = country.demand_level * site.traffic
-        selling_price = base_price * demand_multiplier * (0.8 + random.random() * 0.4)  # Random variation
-
+        selling_price = site.calculate_price(get_base_price(product), country)
         revenue = selling_price * quantity
-        site_fees = revenue * site.fee_rate
-        shipping = country.shipping_cost * quantity
-        taxes = revenue * country.tax_rate
-        unit_cost = self._get_unit_cost(product)
+        site_fees = site.calculate_fee(revenue)
+        shipping = country.calculate_shipping(quantity)
+        taxes = country.calculate_taxes(revenue)
+        unit_cost = get_unit_cost(self.manufacturers, product)
         total_cost = (unit_cost * quantity) + shipping + taxes + site_fees
-
         profit = revenue - total_cost
 
-        # Update inventory and tracker
         self.inventory[product] -= quantity
-        self.tracker.money += profit
-        self.tracker.total_sales += quantity
-        self.tracker.total_revenue += revenue
-        self.tracker.total_profit += profit
-
-        # Record sale
-        from dropshipping_game.tracker import SaleRecord
         sale = SaleRecord(product, quantity, revenue, total_cost, profit)
-        self.tracker.sales.append(sale)
+        self.tracker.record_sale(sale)
 
         return True, f"Sold {quantity} units for ${total_revenue:.2f} profit. Money: ${self.tracker.money:.2f}"
 
@@ -213,8 +209,7 @@ class DropshippingGame:
         ]
 
         for manufacturer in self.manufacturers:
-            # Restock some inventory
-            manufacturer.stock += random.randint(0, 100)
+            manufacturer.restock()
 
         return f"Advanced to day {self.current_day}. Market conditions have changed."
 
