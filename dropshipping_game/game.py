@@ -1,11 +1,20 @@
 from dataclasses import dataclass, field
-import random
 
-from dropshipping_game.countries import Country
-from dropshipping_game.manufacturers import Manufacturer
-from dropshipping_game.selling_sites import SellingSite
-from dropshipping_game.tracker import SalesTracker
+from dropshipping_game.countries import Country, create_default_countries, find_country
 from dropshipping_game.gemini_client import GeminiAdvisor
+from dropshipping_game.manufacturers import (
+    Manufacturer,
+    create_default_manufacturers,
+    find_manufacturer,
+    get_base_price,
+    get_unit_cost,
+)
+from dropshipping_game.selling_sites import (
+    SellingSite,
+    create_default_selling_sites,
+    find_selling_site,
+)
+from dropshipping_game.tracker import SaleRecord, SalesTracker
 
 
 @dataclass
@@ -24,31 +33,9 @@ class DropshippingGame:
 
     def _initialize_game_data(self):
         """Initialize game with sample data"""
-        # Countries
-        self.countries = [
-            Country("USA", 5.0, 0.08, 0.9, "High demand, expensive shipping"),
-            Country("China", 15.0, 0.05, 0.7, "Cheap manufacturing, long shipping"),
-            Country("Germany", 8.0, 0.19, 0.8, "Quality focus, high taxes"),
-            Country("Brazil", 12.0, 0.12, 0.6, "Growing market, variable shipping"),
-        ]
-
-        # Manufacturers
-        self.manufacturers = [
-            Manufacturer("TechCorp", "Smartphone", 200.0, 1000, 0.85, "Reliable electronics"),
-            Manufacturer("FashionHub", "T-Shirt", 15.0, 5000, 0.7, "Trendy clothing"),
-            Manufacturer("HomeGoods Inc", "Coffee Maker", 45.0, 2000, 0.8, "Quality appliances"),
-            Manufacturer("ToyWorld", "Action Figure", 8.0, 8000, 0.6, "Fun toys"),
-        ]
-
-        # Selling Sites
-        self.selling_sites = [
-            SellingSite("Amazon", 0.15, 0.95, 0.9, "High traffic, high fees"),
-            SellingSite("eBay", 0.10, 0.8, 0.7, "Auction style, moderate fees"),
-            SellingSite("Shopify Store", 0.05, 0.6, 0.8, "Your own store, low fees"),
-            SellingSite("Facebook Marketplace", 0.03, 0.7, 0.6, "Local sales, low fees"),
-        ]
-
-        # Starting money
+        self.countries = create_default_countries()
+        self.manufacturers = create_default_manufacturers()
+        self.selling_sites = create_default_selling_sites()
         self.tracker.money = 1000.0
 
     def get_available_actions(self) -> list[str]:
@@ -60,20 +47,19 @@ class DropshippingGame:
 
     def buy_products(self, manufacturer_name: str, quantity: int) -> str:
         """Buy products from a manufacturer"""
-        manufacturer = next((m for m in self.manufacturers if m.name == manufacturer_name), None)
+        manufacturer = find_manufacturer(self.manufacturers, manufacturer_name)
         if not manufacturer:
             return f"Manufacturer {manufacturer_name} not found."
 
-        if quantity > manufacturer.stock:
+        if not manufacturer.can_fulfill(quantity):
             return f"Not enough stock. Available: {manufacturer.stock}"
 
-        total_cost = manufacturer.unit_cost * quantity
+        total_cost = manufacturer.purchase_cost(quantity)
         if total_cost > self.tracker.money:
             return f"Not enough money. Need ${total_cost:.2f}, have ${self.tracker.money:.2f}"
 
-        # Make purchase
-        manufacturer.stock -= quantity
-        self.tracker.money -= total_cost
+        manufacturer.remove_stock(quantity)
+        self.tracker.spend_money(total_cost)
         self.inventory[manufacturer.product] = self.inventory.get(manufacturer.product, 0) + quantity
 
         return f"Bought {quantity} {manufacturer.product}(s) for ${total_cost:.2f}"
@@ -83,69 +69,36 @@ class DropshippingGame:
         if product not in self.inventory or self.inventory[product] < quantity:
             return f"Not enough {product} in inventory. Have: {self.inventory.get(product, 0)}"
 
-        site = next((s for s in self.selling_sites if s.name == site_name), None)
-        country = next((c for c in self.countries if c.name == country_name), None)
+        site = find_selling_site(self.selling_sites, site_name)
+        country = find_country(self.countries, country_name)
 
         if not site or not country:
             return "Invalid site or country."
 
-        # Calculate pricing and costs
-        base_price = self._get_base_price(product)
-        demand_multiplier = country.demand_level * site.traffic
-        selling_price = base_price * demand_multiplier * (0.8 + random.random() * 0.4)  # Random variation
-
+        selling_price = site.calculate_price(get_base_price(product), country)
         revenue = selling_price * quantity
-        site_fees = revenue * site.fee_rate
-        shipping = country.shipping_cost * quantity
-        taxes = revenue * country.tax_rate
-        unit_cost = self._get_unit_cost(product)
+        site_fees = site.calculate_fee(revenue)
+        shipping = country.calculate_shipping(quantity)
+        taxes = country.calculate_taxes(revenue)
+        unit_cost = get_unit_cost(self.manufacturers, product)
         total_cost = (unit_cost * quantity) + shipping + taxes + site_fees
-
         profit = revenue - total_cost
 
-        # Update inventory and tracker
         self.inventory[product] -= quantity
-        self.tracker.money += profit
-        self.tracker.total_sales += quantity
-        self.tracker.total_revenue += revenue
-        self.tracker.total_profit += profit
-
-        # Record sale
-        from dropshipping_game.tracker import SaleRecord
         sale = SaleRecord(product, quantity, revenue, total_cost, profit)
-        self.tracker.sales.append(sale)
+        self.tracker.record_sale(sale)
 
         return f"Sold {quantity} {product}(s) for ${revenue:.2f} profit. Total profit: ${profit:.2f}"
-
-    def _get_base_price(self, product: str) -> float:
-        """Get base selling price for a product"""
-        prices = {
-            "Smartphone": 400.0,
-            "T-Shirt": 25.0,
-            "Coffee Maker": 80.0,
-            "Action Figure": 15.0,
-        }
-        return prices.get(product, 50.0)
-
-    def _get_unit_cost(self, product: str) -> float:
-        """Get unit cost for a product"""
-        for m in self.manufacturers:
-            if m.product == product:
-                return m.unit_cost
-        return 10.0
 
     def advance_day(self) -> str:
         """Advance to next day, update market conditions"""
         self.current_day += 1
 
-        # Random market changes
         for country in self.countries:
-            country.demand_level *= 0.95 + random.random() * 0.1  # Slight variation
-            country.demand_level = max(0.1, min(1.0, country.demand_level))
+            country.update_demand()
 
         for manufacturer in self.manufacturers:
-            # Restock some inventory
-            manufacturer.stock += random.randint(0, 100)
+            manufacturer.restock()
 
         return f"Advanced to day {self.current_day}. Market conditions have changed."
 

@@ -3,11 +3,13 @@ from dataclasses import dataclass
 
 try:
     from google import genai
+
     GENAI_AVAILABLE = True
     GENAI_MODERN = True
 except ImportError:
     try:
         import google.generativeai as genai
+
         GENAI_AVAILABLE = True
         GENAI_MODERN = False
     except ImportError:
