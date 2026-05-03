@@ -21,9 +21,20 @@ You're running a dropshipping business! Buy products from manufacturers, sell th
 ## Run
 
 ```powershell
-pip install -r requirements.txt
-streamlit run dropshipping_game/ui/streamlit_app.py
+py -m pip install -r requirements.txt
+py -m streamlit run dropshipping_game/ui/streamlit_app.py
 ```
+
+## Gemini Setup
+
+1. Set your Gemini API key:
+
+```powershell
+setx GEMINI_API_KEY "your_api_key_here"
+```
+
+2. Restart your terminal so the environment variable is available.
+3. Run the game again with Streamlit.
 
 ## Files
 

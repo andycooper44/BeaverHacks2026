@@ -1,6 +1,7 @@
 import streamlit as st
 
 from dropshipping_game.game import DropshippingGame
+from dropshipping_game.gemini_client import GENAI_AVAILABLE
 
 
 def main() -> None:
@@ -11,6 +12,14 @@ def main() -> None:
         st.session_state.game = DropshippingGame()
 
     game = st.session_state.game
+
+    if game.advisor.api_key:
+        if GENAI_AVAILABLE:
+            st.success("🤖 Gemini AI advisor enabled")
+        else:
+            st.warning("Gemini API key set, but the required library is missing. Install google-genai.")
+    else:
+        st.info("Gemini AI advisor disabled. Set GEMINI_API_KEY to enable AI advice.")
 
     # Game status
     st.header("📊 Game Status")

@@ -2,10 +2,17 @@ import os
 from dataclasses import dataclass
 
 try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
+    from google import genai
+    GENAI_AVAILABLE = True
+    GENAI_MODERN = True
 except ImportError:
-    GEMINI_AVAILABLE = False
+    try:
+        import google.generativeai as genai
+        GENAI_AVAILABLE = True
+        GENAI_MODERN = False
+    except ImportError:
+        GENAI_AVAILABLE = False
+        GENAI_MODERN = False
 
 
 @dataclass
@@ -24,14 +31,10 @@ class GeminiAdvisor:
         if not self.api_key:
             return "No Gemini API key set. Set GEMINI_API_KEY environment variable for AI advice."
 
-        if not GEMINI_AVAILABLE:
-            return "Google Generative AI library not installed. Run 'pip install google-generativeai' for AI advice."
+        if not GENAI_AVAILABLE:
+            return "Google Gemini AI library not installed. Run 'pip install google-genai' for AI advice."
 
-        try:
-            genai.configure(api_key=self.api_key)
-            model = genai.GenerativeModel(self.model_name)
-
-            prompt = f"""
+        prompt = f"""
 You are an expert dropshipping business advisor. Based on this game state, give one strategic tip (2-3 sentences max):
 
 {game_state}
@@ -39,8 +42,20 @@ You are an expert dropshipping business advisor. Based on this game state, give 
 What should the player focus on next?
 """
 
-            response = model.generate_content(prompt)
-            return response.text.strip()
+        try:
+            if GENAI_MODERN:
+                genai.configure(api_key=self.api_key)
+                model = genai.GenerativeModel(model=self.model_name)
+                response = model.generate(prompt=prompt)
+            else:
+                genai.configure(api_key=self.api_key)
+                model = genai.GenerativeModel(self.model_name)
+                response = model.generate_content(prompt)
 
+            if hasattr(response, "text"):
+                return response.text.strip()
+            if hasattr(response, "candidates") and response.candidates:
+                return response.candidates[0].content.strip()
+            return str(response)
         except Exception as e:
             return f"Error getting AI advice: {str(e)}"
