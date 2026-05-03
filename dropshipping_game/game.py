@@ -16,21 +16,8 @@ class DropshippingGame:
     selling_sites: list[SellingSite] = field(default_factory=list)
     current_day: int = 1
     notes: str = ""
-    inventory: dict[str, int] = field(default_factory=dict)  # product -> quantity
-    advisor: GeminiAdvisor = field(default_factory=GeminiAdvisor)
-
-    def __post_init__(self):
-        self._initialize_game_data()
-
-    def _initialize_game_data(self):
-        """Initialize game with sample data"""
-        # Countries
-        self.countries = [
-            Country("USA", 5.0, 0.08, 0.9, "High demand, expensive shipping"),
-            Country("China", 15.0, 0.05, 0.7, "Cheap manufacturing, long shipping"),
-            Country("Germany", 8.0, 0.19, 0.8, "Quality focus, high taxes"),
-            Country("Brazil", 12.0, 0.12, 0.6, "Growing market, variable shipping"),
-        ]
+    rent_amount: float = 500.0
+    days_until_rent: int = 7
 
         # Manufacturers
         self.manufacturers = [
@@ -51,12 +38,19 @@ class DropshippingGame:
         # Starting money
         self.tracker.money = 1000.0
 
-    def get_available_actions(self) -> list[str]:
-        """Get list of available player actions"""
-        actions = ["Buy Products", "Sell Products", "Check Inventory", "View Stats", "Advance Day"]
-        if self.advisor.api_key:
-            actions.append("Get AI Advice")
-        return actions
+        # Handle rent
+        self.days_until_rent -= 1
+        if self.days_until_rent <= 0:
+            if self.tracker.money >= self.rent_amount:
+                self.tracker.money -= self.rent_amount
+                events.append(f"Rent paid: ${self.rent_amount:.2f}")
+                self.days_until_rent = 7  # Reset countdown
+            else:
+                events.append(f"Rent due but insufficient funds! Owed ${self.rent_amount:.2f}, have ${self.tracker.money:.2f}. Game over!")
+                # Could add game over logic here
+
+        summary = f"Day {self.current_day} complete. " + " | ".join(events) if events else f"Day {self.current_day} complete. No sales today."
+        return summary
 
     def buy_products(self, manufacturer_name: str, quantity: int) -> str:
         """Buy products from a manufacturer"""
@@ -74,7 +68,37 @@ class DropshippingGame:
         # Make purchase
         manufacturer.stock -= quantity
         self.tracker.money -= total_cost
-        self.inventory[manufacturer.product] = self.inventory.get(manufacturer.product, 0) + quantity
+        manufacturer.stock += quantity
+        return True, f"Successfully purchased {quantity} units of {manufacturer.product} for ${total_cost:.2f}"
+
+    def sell_product(self, manufacturer: Manufacturer, quantity: int, selling_price: float, country: Country, site: SellingSite) -> tuple[bool, str]:
+        """Manually sell products. Returns (success, message)."""
+        if quantity <= 0:
+            return False, "Quantity must be positive"
+
+        if manufacturer.stock < quantity:
+            return False, f"Insufficient stock. Have {manufacturer.stock}, need {quantity}"
+
+        # Calculate costs and revenue
+        unit_cost = manufacturer.unit_cost
+        shipping_cost = country.shipping_cost
+        tax_amount = selling_price * country.tax_rate
+        site_fee = selling_price * site.fee_rate
+
+        total_cost_per_unit = unit_cost + shipping_cost + tax_amount + site_fee
+        total_revenue = selling_price * quantity
+        total_cost = total_cost_per_unit * quantity
+        profit = total_revenue - total_cost
+
+        # Record the sale
+        sale = SaleRecord(
+            product=manufacturer.product,
+            quantity=quantity,
+            revenue=total_revenue,
+            cost=total_cost,
+            profit=profit,
+            day=self.current_day
+        )
 
         return f"Bought {quantity} {manufacturer.product}(s) for ${total_cost:.2f}"
 
@@ -115,33 +139,78 @@ class DropshippingGame:
         sale = SaleRecord(product, quantity, revenue, total_cost, profit)
         self.tracker.sales.append(sale)
 
-        return f"Sold {quantity} {product}(s) for ${revenue:.2f} profit. Total profit: ${profit:.2f}"
+        return True, f"Sold {quantity} units for ${total_revenue:.2f} profit. Money: ${self.tracker.money:.2f}"
 
-    def _get_base_price(self, product: str) -> float:
-        """Get base selling price for a product"""
-        prices = {
-            "Smartphone": 400.0,
-            "T-Shirt": 25.0,
-            "Coffee Maker": 80.0,
-            "Action Figure": 15.0,
-        }
-        return prices.get(product, 50.0)
+    def _simulate_sales_for_manufacturer(self, manufacturer: Manufacturer) -> int:
+        """Simulate automatic sales for a manufacturer. Returns units sold."""
+        if not self.countries or not self.selling_sites:
+            return 0
 
-    def _get_unit_cost(self, product: str) -> float:
-        """Get unit cost for a product"""
-        for m in self.manufacturers:
-            if m.product == product:
-                return m.unit_cost
-        return 10.0
+        # Simple sales simulation based on various factors
+        base_demand = sum(country.demand_level for country in self.countries) / len(self.countries)
+        quality_factor = manufacturer.quality / 10.0
+        traffic_factor = sum(site.traffic for site in self.selling_sites) / len(self.selling_sites) / 10.0
 
-    def advance_day(self) -> str:
-        """Advance to next day, update market conditions"""
-        self.current_day += 1
+        # Random factor for unpredictability
+        random_factor = random.uniform(0.5, 1.5)
 
-        # Random market changes
-        for country in self.countries:
-            country.demand_level *= 0.95 + random.random() * 0.1  # Slight variation
-            country.demand_level = max(0.1, min(1.0, country.demand_level))
+        # Calculate potential sales
+        potential_sales = int(base_demand * quality_factor * traffic_factor * random_factor)
+
+        # Limit by available stock
+        actual_sales = min(potential_sales, manufacturer.stock)
+
+        if actual_sales > 0:
+            # Simulate selling at a reasonable price
+            avg_country = self.countries[0]  # Use first country for simplicity
+            avg_site = self.selling_sites[0]
+
+            selling_price = manufacturer.unit_cost * random.uniform(2.0, 4.0)  # 2-4x markup
+
+            # Calculate costs
+            shipping_cost = avg_country.shipping_cost
+            tax_amount = selling_price * avg_country.tax_rate
+            site_fee = selling_price * avg_site.fee_rate
+
+            total_cost_per_unit = manufacturer.unit_cost + shipping_cost + tax_amount + site_fee
+            total_revenue = selling_price * actual_sales
+            total_cost = total_cost_per_unit * actual_sales
+            profit = total_revenue - total_cost
+
+            # Record the sale
+            sale = SaleRecord(
+                product=manufacturer.product,
+                quantity=actual_sales,
+                revenue=total_revenue,
+                cost=total_cost,
+                profit=profit,
+                day=self.current_day
+            )
+
+            self.tracker.sales.append(sale)
+            self.tracker.total_sales += actual_sales
+            self.tracker.total_revenue += total_revenue
+            self.tracker.total_profit += profit
+            self.tracker.money += profit
+
+            manufacturer.stock -= actual_sales
+
+        return actual_sales
+
+    def _generate_random_event(self) -> str:
+        """Generate a random event that affects the game."""
+        events = [
+            "Demand spike! Sales increased by 50% today.",
+            "Supply chain delay. Manufacturer stock reduced by 20%.",
+            "New competitor entered the market. Prices dropped 10%.",
+            "Positive review went viral. Trust increased for all sites.",
+            "Economic downturn. Demand decreased by 30%.",
+            "Bulk discount opportunity. Unit costs reduced by 15%.",
+            "Shipping strike. Shipping costs doubled.",
+            "Tax audit. Extra taxes owed.",
+            "Loyal customer bonus. Extra money received.",
+            "Product recall. Lost some inventory."
+        ]
 
         for manufacturer in self.manufacturers:
             # Restock some inventory
@@ -156,21 +225,7 @@ Day: {self.current_day}
 Money: ${self.tracker.money:.2f}
 Total Sales: {self.tracker.total_sales}
 Total Profit: ${self.tracker.total_profit:.2f}
-
-Inventory:
-"""
-        for product, qty in self.inventory.items():
-            status += f"- {product}: {qty}\n"
-
-        return status.strip()
-
-    def get_ai_advice(self) -> str:
-        """Get AI-powered business advice"""
-        game_state = f"""
-Day: {self.current_day}
-Money: ${self.tracker.money:.2f}
-Inventory: {self.inventory}
-Total Profit: ${self.tracker.total_profit:.2f}
-Recent sales: {len(self.tracker.sales)} transactions
-"""
-        return self.advisor.get_advice(game_state)
+Days until rent: {self.days_until_rent}
+Manufacturers: {len(self.manufacturers)}
+Countries: {len(self.countries)}
+Selling Sites: {len(self.selling_sites)}"""

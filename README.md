@@ -52,4 +52,13 @@ Set `GEMINI_API_KEY` environment variable to enable AI-powered business advice.
 
 ## Goal
 
-Build your dropshipping empire and maximize profits over time!
+Set `GEMINI_API_KEY` when you are ready to test AI suggestions.
+
+## Changelog
+
+Sayer:
+-Added a more descriptive UI in streamlit, Including placement of iteractability.
+-added message every day to display sales and events
+-Added tutorial
+-Added graph of recent sales 
+-fixed crash when stock was zero
