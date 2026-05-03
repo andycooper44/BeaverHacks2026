@@ -26,3 +26,9 @@ streamlit run dropshipping_game/ui/streamlit_app.py
 ## Gemini
 
 Set `GEMINI_API_KEY` when you are ready to test AI suggestions.
+
+## Changelog
+
+Sayer:
+-Added a more descriptive UI in streamlit, Including placement of iteractability.
+-
